@@ -6,4 +6,4 @@
 
 <img width="2867" height="1709" alt="Screenshot 2025-08-31 121338" src="https://github.com/user-attachments/assets/27706139-c2ee-43a9-912d-724a545358fd" />
 
-For running this code on EDA Playground, [Click here](https://edaplayground.com)
+The APB operating states have been implemented in Verilog and are available, [here](https://edaplayground.com)
