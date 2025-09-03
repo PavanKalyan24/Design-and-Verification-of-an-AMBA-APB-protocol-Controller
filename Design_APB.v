@@ -1,66 +1,74 @@
-// Code your design here
-module AMBA_APB(P_clk,P_rst,P_addr,P_selx,P_enable,P_write,P_wdata,P_ready,P_slverr,P_rdata);
-  //input configration 
-  input P_clk;
-  input P_rst;
-  input [31:0]P_addr;
-  
-  input P_selx;
-  input P_enable;
-  input P_write;
-  input [31:0]P_wdata;
-  
-  //output configration
-  output reg P_ready;
-  output reg  P_slverr;
-  output reg [31:0]P_rdata;
-  //memory decleration
-  reg [31:0]mem[31:0];
-  //state declaration communication
-  parameter [1:0] idle=2'b00;
-  parameter [1:0] setup=2'b01;
-  parameter [1:0] access=2'b10;
-  
-  //state declaration of present and next 
-  reg [1:0] present_state,next_state;
-  
-  always @(posedge P_clk) begin
-    if(P_rst) present_state <= idle;
-    else
-      present_state <= next_state;
-  end
-  always @(*) begin
-  //next_state =present_state;
-  case (present_state)
-    idle:begin
-      if (P_selx   & !P_enable) 	
-				next_state = setup;
-      P_ready=0;
+module AMBA_APB(
+    input clock,
+    input reset,
+    input [31:0] address,
+    input select,
+    input enable,
+    input write_en,
+    input [31:0] write_data,
+    output reg ready,
+    output reg slave_error,
+    output reg [31:0] read_data
+);
+    
+    // State encoding
+    localparam [1:0] IDLE_ST  = 2'b00;
+    localparam [1:0] SETUP_ST = 2'b01;
+    localparam [1:0] ACCESS_ST = 2'b10;
+    
+    // Internal state registers
+    reg [1:0] current_state, next_state;
+    
+    // Memory array (32 words of 32 bits each)
+    reg [31:0] memory_block [0:31];
+    
+    // State transition logic
+    always @(posedge clock) begin
+        if (reset) begin
+            current_state <= IDLE_ST;
+        end else begin
+            current_state <= next_state;
+        end
     end
-
-    setup:begin if (!P_enable | !P_selx) 
-						next_state = idle; 
-              else begin
-						next_state =access;
-                       
-                if(P_write ==1) begin
-                  mem[P_addr]= P_wdata;
-                  P_ready=1;
-                  P_slverr=0;
-                   end
-                 else begin
-                   P_rdata=mem[P_addr];
-                   P_ready=1;
-                   P_slverr=0;
-                 end
-               end
+    
+    // Next state and output logic
+    always @(*) begin
+        // Default outputs
+        ready = 1'b0;
+        slave_error = 1'b0;
+        read_data = 32'b0;
+        next_state = current_state;
+        
+        case (current_state)
+            IDLE_ST: begin
+                if (select && !enable) begin
+                    next_state = SETUP_ST;
+                end
+            end
+            
+            SETUP_ST: begin
+                if (!select || !enable) begin
+                    next_state = IDLE_ST;
+                end else begin
+                    next_state = ACCESS_ST;
+                    
+                    // Perform read or write operation
+                    if (write_en) begin
+                        memory_block[address] <= write_data;
+                        ready = 1'b1;
+                    end else begin
+                        read_data = memory_block[address];
+                        ready = 1'b1;
+                    end
+                end
+            end
+            
+            ACCESS_ST: begin
+                if (!select || !enable) begin
+                    next_state = IDLE_ST;
+                end
+            end
+        endcase
     end
-    access :begin
-      if (!P_enable | !P_selx) begin
-					    next_state = idle;
-                        P_ready =0;
-             end
-    end
-	endcase 
-end
+    
 endmodule
